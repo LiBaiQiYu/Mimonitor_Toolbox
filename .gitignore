@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+dist/
+build/
+*.spec
+logs/
+*.Zone.Identifier
+ok.py
