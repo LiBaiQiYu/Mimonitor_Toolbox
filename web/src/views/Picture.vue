@@ -101,7 +101,8 @@ async function refreshData() {
     for (const s of sliders) {
         try {
             const v = await api.getSetting(s.key);
-            s.value = parseInt(v) || 50;
+            const parsed = parseInt(v);
+            s.value = isNaN(parsed) ? 50 : parsed;
         } catch {}
     }
 

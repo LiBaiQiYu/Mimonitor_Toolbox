@@ -41,7 +41,7 @@ export function useAdb() {
             }
             return result.success;
         } catch (e) {
-            log(`连接错误: ${e}`);
+            log(`连接错误: ${e?.message || e?.toString?.() || JSON.stringify(e) || '未知错误'}`);
             return false;
         }
     }
