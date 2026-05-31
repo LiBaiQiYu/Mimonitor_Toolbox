@@ -52,8 +52,14 @@ static ADB_PATH: once_cell::sync::Lazy<String> = once_cell::sync::Lazy::new(|| {
     }
 
     if let Ok(cwd) = std::env::current_dir() {
-        search_paths.push(cwd.join(exe_name));
+        // web/ directory (project root with adb.exe + dlls)
+        search_paths.push(cwd.join("../").join(exe_name));  // web/adb.exe
+        search_paths.push(cwd.join("../").join("AdbWinApi.dll"));
+        search_paths.push(cwd.join("../").join("AdbWinUsbApi.dll"));
+        search_paths.push(cwd.join("../bin").join(exe_name));
         search_paths.push(cwd.join("../../").join(exe_name));
+        search_paths.push(cwd.join(exe_name));
+        search_paths.push(cwd.join("bin").join(exe_name));
     }
 
     // Check external paths first

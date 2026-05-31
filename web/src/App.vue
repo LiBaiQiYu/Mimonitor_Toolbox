@@ -2,7 +2,7 @@
     <div class="app">
         <div class="titlebar">
             <div class="titlebar-drag" data-tauri-drag-region>
-                <span class="titlebar-title">红米 G Pro 27U Toolbox</span>
+                <span class="titlebar-title">G Pro 27U 2025 Toolbox</span>
             </div>
             <div class="titlebar-controls">
                 <button class="titlebar-btn minimize" @click="minimizeWindow">
@@ -35,6 +35,10 @@
             <router-link to="/tools">
                 <span class="icon">⚙️</span>
                 <span>工具</span>
+            </router-link>
+            <router-link to="/about">
+                <span class="icon">ℹ️</span>
+                <span>关于</span>
             </router-link>
         </nav>
 

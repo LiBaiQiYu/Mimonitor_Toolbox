@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "红米 G Pro 27U Toolbox",
+        "title": "G Pro 27U 2025 Toolbox",
         "width": 900,
         "height": 700,
         "minWidth": 800,
@@ -36,7 +36,7 @@
       "icons/icon.icns",
       "icons/icon.png"
     ],
-    "resources": ["./bin/adb*"],
+    "resources": ["./bin/adb.exe", "./bin/AdbWinApi.dll", "./bin/AdbWinUsbApi.dll"],
     "windows": {
       "nsis": {
         "installMode": "both"
