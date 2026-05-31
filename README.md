@@ -10,6 +10,11 @@
  原项目 YiHooong/Mimonitor_Toolbox: https://github.com/YiHooong/Mimonitor_Toolbox
 
 
+## 软件截图
+
+<img src="assets/connect.png" width="500">
+<img src="assets/picture_setting.png" width="500">
+
 ## 实现原理
 
 通过无线 ADB 连接到显示器内置的 Android 系统，利用 `settings` 命令和 MTK 平台 JNI 接口（`MtkDirectTool.jar`）直接读写硬件寄存器，实现对显示器各项参数的精确控制。
