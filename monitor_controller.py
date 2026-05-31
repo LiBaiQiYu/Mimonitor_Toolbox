@@ -404,6 +404,7 @@ class App(FluentWindow):
                              "picture_brightness", "picture_contrast", "picture_saturation",
                              "picture_hue", "picture_sharpness", "picture_color_temperature",
                              "tv_picture_video_local_dimming", "picture_dynamic_definition",
+                             "picture_response_time", "tv_picture_video_color_space",
                              "picture_response_time", "tv_picture_video_color_space"],
                 "jni": ["g_disp__disp_back_light", "g_video__vid_gamut_mapping_mode", "g_video__clr_temp", "g_video__vid_local_dimming"],
             },
@@ -573,7 +574,7 @@ class App(FluentWindow):
         actions_map = {
             "picture_mode_cycle": (
                 "picture_mode",
-                [(14, "标准"), (10, "游戏"), (9, "电影")],
+                [(14, "标准"), (10, "游戏"), (9, "电影"), (18, "HDR 标准"), (16, "HDR 游戏"), (17, "HDR 电影")],
                 "画面模式",
                 lambda val, name: self._set_mode(val, name)
             ),
@@ -595,21 +596,9 @@ class App(FluentWindow):
                 "色温",
                 lambda val, name: self._set_color_temp(4 if val==3 else (3 if val==2 else (2 if val==1 else (6 if val==6 else 1))), val, f"色温: {name}")
             ),
-            "response_time_cycle": (
-                "picture_response_time",
-                [(1, "普通"), (2, "快速"), (3, "高速")],
-                "灰阶响应时间",
-                lambda val, name: self._jni("g_video__vid_od_response_time", val, "picture_response_time", f"响应时间: {name}")
-            ),
-            "freesync_toggle": (
-                "freesync",
-                [(0, "关"), (1, "开")],
-                "FreeSync",
-                lambda val, name: self._fsync(val == 1)
-            ),
             "input_source_cycle": (
                 "tv_input_source_id",
-                [(23, "HDMI 1"), (24, "HDMI 2"), (29, "DP"), (30, "USBC")],
+                [(23, "HDMI 1"), (24, "HDMI 2"), (29, "DP")],
                 "信号源切换",
                 lambda val, name: self._set("tv_input_source_id", val, f"信号源: {name}")
             )
@@ -820,29 +809,44 @@ class App(FluentWindow):
             self.log("正在重启显示器...")
             self.adb.shell("reboot")
         else:
+            w = MessageBox("需要重启显示器", "关闭 4K UI 需要重启显示器才能生效。\n\n点击确定后将设置分辨率为 1920×1080、DPI 320，并重启显示器。\n\n是否继续？", self)
+            if not w.exec():
+                self.chk_4k.blockSignals(True)
+                self.chk_4k.setChecked(True)
+                self.chk_4k.blockSignals(False)
+                return
             self.adb.shell("wm size 1920x1080")
             self.adb.shell("wm density 320")
             self.log("已恢复 1080p UI (1920×1080 / DPI 320)")
+            self.log("正在重启显示器...")
+            self.adb.shell("reboot")
 
     def _check_4k_state(self):
-        """检测 Override size，存在且大于1080p则为4K模式"""
+        """检测分辨率是否大于1080p"""
         if not getattr(self, "adb_connected", False):
             return
         try:
             res = self.adb.shell("wm size")
+            self.log(f"wm size输出: {res.strip().replace(chr(10), ' | ')}")
             is_4k = False
             for line in res.split("\n"):
-                if "Override size" in line:
-                    parts = line.split(":")[-1].strip().split("x")
-                    if len(parts) == 2:
-                        w, h = int(parts[0]), int(parts[1])
-                        is_4k = (w > 1920 or h > 1080)
-                    break
+                line = line.strip()
+                if "x" in line:
+                    try:
+                        parts = line.split(":")[-1].strip().split("x")
+                        if len(parts) == 2:
+                            w, h = int(parts[0]), int(parts[1])
+                            if w > 1920 or h > 1080:
+                                is_4k = True
+                                break
+                    except:
+                        pass
             self.chk_4k.blockSignals(True)
             self.chk_4k.setChecked(is_4k)
             self.chk_4k.blockSignals(False)
-        except:
-            pass
+            self.log(f"4K UI状态: {'已开启' if is_4k else '已关闭'}")
+        except Exception as e:
+            self.log(f"检测4K状态失败: {e}")
 
     def _export_log(self):
         path, _ = QFileDialog.getSaveFileName(
@@ -912,25 +916,19 @@ class App(FluentWindow):
     def setup_ui(self):
         self.home_page = self._make_home_page()
         self.picture_page = self._make_picture_page()
-        self.game_page = self._make_game_page()
         self.source_page = self._make_source_page()
         self.tools_page = self._make_tools_page()
-        self.remote_page = self._make_remote_page()
 
         self.home_page.setObjectName("homePage")
         self.picture_page.setObjectName("picturePage")
-        self.game_page.setObjectName("gamePage")
         self.source_page.setObjectName("sourcePage")
         self.tools_page.setObjectName("toolsPage")
-        self.remote_page.setObjectName("remotePage")
 
         # Add routes
         self.addSubInterface(self.home_page, FIF.HOME, "主页 & 连接")
         self.addSubInterface(self.picture_page, FIF.PALETTE, "画面设置")
-        self.addSubInterface(self.game_page, FIF.GAME, "游戏模式")
         self.addSubInterface(self.source_page, FIF.SYNC, "信号源切换")
         self.addSubInterface(self.tools_page, FIF.DEVELOPER_TOOLS, "工具与设置")
-        self.addSubInterface(self.remote_page, FIF.TILES, "遥控器")
 
         # Hide return (back) button
         self.navigationInterface.setReturnButtonVisible(False)
@@ -1097,7 +1095,7 @@ class App(FluentWindow):
         h = QHBoxLayout()
         h.setSpacing(10)
         h.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        for val, name in [(14, "标准"), (10, "游戏"), (9, "电影")]:
+        for val, name in [(14, "标准"), (10, "游戏"), (9, "电影"), (18, "HDR 标准"), (16, "HDR 游戏"), (17, "HDR 电影")]:
             b = ToggleButton(name, lf)
             b.setCheckable(True)
             b.setFixedWidth(100)
@@ -1136,27 +1134,7 @@ class App(FluentWindow):
             ("高", 3, lambda _: self._jni("g_video__vid_local_dimming", 3, "tv_picture_video_local_dimming", "精密控光: 高")),
         ], state_key="tv_picture_video_local_dimming")
 
-        self._btn_section(layout, "动态清晰度", [
-            ("关", 0, lambda _: self._jni("g_video__vid_insert_black", 0, "picture_dynamic_definition", "动态清晰度: 关")),
-            ("低", 1, lambda _: self._jni("g_video__vid_insert_black", 1, "picture_dynamic_definition", "动态清晰度: 低")),
-            ("中", 2, lambda _: self._jni("g_video__vid_insert_black", 2, "picture_dynamic_definition", "动态清晰度: 中")),
-            ("高", 3, lambda _: self._jni("g_video__vid_insert_black", 3, "picture_dynamic_definition", "动态清晰度: 高")),
-        ], state_key="picture_dynamic_definition")
 
-        self._btn_section(layout, "灰阶响应时间", [
-            ("普通", 1, lambda _: self._jni("g_video__vid_od_response_time", 1, "picture_response_time", "响应时间: 普通")),
-            ("快速", 2, lambda _: self._jni("g_video__vid_od_response_time", 2, "picture_response_time", "响应时间: 快速")),
-            ("高速", 3, lambda _: self._jni("g_video__vid_od_response_time", 3, "picture_response_time", "响应时间: 高速")),
-        ], state_key="picture_response_time")
-
-        self._btn_section(layout, "色域", [
-            ("自动", 0, lambda _: self._jni("g_video__vid_gamut_mapping_mode", 0, "tv_picture_video_color_space", "色域: 自动", "tv_picture_advanced_video_color_space")),
-            ("sRGB", 3, lambda _: self._jni("g_video__vid_gamut_mapping_mode", 3, "tv_picture_video_color_space", "色域: sRGB", "tv_picture_advanced_video_color_space")),
-            ("DCI-P3", 6, lambda _: self._jni("g_video__vid_gamut_mapping_mode", 6, "tv_picture_video_color_space", "色域: DCI-P3", "tv_picture_advanced_video_color_space")),
-            ("AdobeRGB", 4, lambda _: self._jni("g_video__vid_gamut_mapping_mode", 4, "tv_picture_video_color_space", "色域: Adobe RGB", "tv_picture_advanced_video_color_space")),
-            ("BT2020", 5, lambda _: self._jni("g_video__vid_gamut_mapping_mode", 5, "tv_picture_video_color_space", "色域: BT2020", "tv_picture_advanced_video_color_space")),
-            ("BT709", 7, lambda _: self._jni("g_video__vid_gamut_mapping_mode", 7, "tv_picture_video_color_space", "色域: BT709", "tv_picture_advanced_video_color_space")),
-        ], state_key="tv_picture_video_color_space")
 
         scroll.setWidget(container)
         return scroll
@@ -1269,7 +1247,7 @@ class App(FluentWindow):
         if "mitv.tvplayer.hdmi.last.source" not in self.state_buttons:
             self.state_buttons["mitv.tvplayer.hdmi.last.source"] = {}
 
-        for v, n in [(23, "HDMI 1"), (24, "HDMI 2"), (29, "DP"), (30, "USBC")]:
+        for v, n in [(23, "HDMI 1"), (24, "HDMI 2"), (29, "DP")]:
             b = ToggleButton(n, card)
             b.setCheckable(True)
             b.setFixedSize(120, 45)
@@ -1407,7 +1385,7 @@ class App(FluentWindow):
         c3_lay.addLayout(theme_layout)
         
         # Set initial theme index
-        theme_val = settings.get("theme", "dark")
+        theme_val = settings.get("theme", "auto")
         if theme_val == "auto":
             self.theme_combo.setCurrentIndex(0)
         elif theme_val == "dark":
@@ -1511,8 +1489,6 @@ class App(FluentWindow):
             ("local_dimming_cycle", "精密控光 循环切换"),
             ("color_space_cycle", "色域 循环切换"),
             ("color_temp_cycle", "色温 循环切换"),
-            ("response_time_cycle", "响应时间 循环切换"),
-            ("freesync_toggle", "FreeSync 开关切换"),
             ("input_source_cycle", "信号源 循环切换")
         ]
         
@@ -1578,7 +1554,7 @@ class App(FluentWindow):
         layout.addLayout(grid)
 
         github_link = BodyLabel(container)
-        github_link.setText('仓库地址：<a href="https://github.com/YiHooong/Mimonitor_Toolbox" style="color: #734EFF;">https://github.com/YiHooong/Mimonitor_Toolbox</a>')
+        github_link.setText('原作者仓库：<a href="https://github.com/YiHooong/Mimonitor_Toolbox" style="color: #734EFF;">https://github.com/YiHooong/Mimonitor_Toolbox</a><br><br>本项目仅针对 Redmi G Pro 27U 2025款显示器做了适配，移除了部分不支持的功能')
         github_link.setOpenExternalLinks(True)
         github_link.setAlignment(Qt.AlignmentFlag.AlignCenter)
         github_link.setStyleSheet("font-size: 12px; padding: 10px;")
@@ -2146,12 +2122,6 @@ class App(FluentWindow):
     # ===== 按需数据加载 =====
 
     def _apply_polled_values(self, vals):
-        # 设备存的是 MTK 值，需要转成 settings 值才能匹配按钮
-        _MTK_TO_SETTINGS_COLOR_TEMP = {1: 0, 2: 1, 3: 2, 4: 3, 6: 6}
-        if "picture_color_temperature" in vals:
-            mtk_val = vals["picture_color_temperature"]
-            if mtk_val in _MTK_TO_SETTINGS_COLOR_TEMP:
-                vals["picture_color_temperature"] = _MTK_TO_SETTINGS_COLOR_TEMP[mtk_val]
         self.current_vals.update(vals)
         self._check_pending_notifications(vals)
         slider_mappings = {
@@ -2204,7 +2174,7 @@ class App(FluentWindow):
 
     # ===== 页面按需加载 =====
 
-    _PAGES_NEED_CONNECTION = {"picturePage", "gamePage", "sourcePage", "remotePage"}
+    _PAGES_NEED_CONNECTION = {"picturePage", "sourcePage"}
 
     def _on_page_changed(self, index):
         page = self.stackedWidget.widget(index)
@@ -2215,11 +2185,8 @@ class App(FluentWindow):
         if name in self._PAGES_NEED_CONNECTION and not getattr(self, "adb_connected", False):
             self.message_signal.emit("warn", "未连接显示器", "请先在主页连接显示器！")
             # 跳回主页
-            for i in range(self.stackedWidget.count()):
-                w = self.stackedWidget.widget(i)
-                if w and w.objectName() == "homePage":
-                    self.stackedWidget.setCurrentIndex(i)
-                    return
+            self.stackedWidget.setCurrentIndex(0)
+            return
         if name in self._page_data_keys and name not in self._page_loaded and name not in self._page_loading:
             self._refresh_page_data(name)
 
@@ -2268,22 +2235,21 @@ class App(FluentWindow):
                         settings_vals["tv_picture_video_color_space"] = gamut_val
                     except: pass
 
-                # 读取 JNI 色温 (MTK 值需转换为 settings 值)
+                # 读取 JNI 色温
                 if "g_video__clr_temp" in cfg.get("jni", []):
-                    _MTK_TO_SETTINGS_COLOR_TEMP = {1: 0, 2: 1, 3: 2, 4: 3, 6: 6}
                     clr = self.adb.jni_get("g_video__clr_temp")
                     try:
                         clr_val = int(clr)
-                        if clr_val in _MTK_TO_SETTINGS_COLOR_TEMP:
-                            settings_vals["picture_color_temperature"] = _MTK_TO_SETTINGS_COLOR_TEMP[clr_val]
+                        settings_vals["picture_color_temperature"] = clr_val
                     except: pass
 
-                # 读取 JNI 控光 (直接覆盖 settings)
+                # 读取精密控光 (使用 picture_local_dimming)
                 if "g_video__vid_local_dimming" in cfg.get("jni", []):
-                    dim = self.adb.jni_get("g_video__vid_local_dimming")
+                    dim_raw = self.adb.shell("settings get global picture_local_dimming")
                     try:
-                        settings_vals["tv_picture_video_local_dimming"] = int(dim)
-                    except: pass
+                        settings_vals["tv_picture_video_local_dimming"] = int(dim_raw)
+                    except:
+                        pass
 
                 # 读取 JNI 模式 (game page)
                 if cfg.get("jni_mode"):
@@ -2322,7 +2288,6 @@ class App(FluentWindow):
     def _show_loading_overlay(self, page_name):
         pages = {
             "picturePage": self.picture_page,
-            "gamePage": self.game_page,
             "sourcePage": self.source_page,
         }
         page = pages.get(page_name)
@@ -2342,7 +2307,6 @@ class App(FluentWindow):
     def _hide_loading_overlay(self, page_name):
         pages = {
             "picturePage": self.picture_page,
-            "gamePage": self.game_page,
             "sourcePage": self.source_page,
         }
         page = pages.get(page_name)
@@ -2377,7 +2341,7 @@ if __name__ == "__main__":
         sys.exit(1)
         
     settings = load_settings()
-    theme_val = settings.get("theme", "dark")
+    theme_val = settings.get("theme", "auto")
     if theme_val == "auto":
         setTheme(Theme.AUTO)
     elif theme_val == "light":

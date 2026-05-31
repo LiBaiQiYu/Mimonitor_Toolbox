@@ -1,12 +1,14 @@
 # Mimonitor Toolbox
 
-Redmi G Pro 27U 2026显示器 ADB 控制工具
-测试机器系统版本号：HyperOS 3.0.112.0  
-不确定小米是否后续会对该行为进行阻止 且用且珍惜吧 尚不知2025是否可用  
-摸索了很久 有点地方写的也不怎么样 有问题欢迎issue  
-如果觉得本项目对你有帮助，欢迎点亮一颗 ⭐ (Star) 支持一下！或者，您也可以通过赞助 Sponsor 请我喝杯快乐水。开源不易，感谢认可！🙌  
+Redmi G Pro 27U 2025款 显示器 ADB 控制工具
 
-<img src="assets/e41e5c8458c34a6e2f7c46b92be05381.png" width="300"> <img src="assets/116be2f82c8a3f88e57f95cf4f11c0a9.jpg" width="300">
+专为 2025 款 Redmi G Pro 27U 适配开发，通过 ADB 直连显示器内置 Android 系统，实现对各项显示参数的精确控制。
+
+测试机器系统版本号：HyperOS 3.0.109.0  
+
+
+原作者/项目 YiHooong/Mimonitor_Toolbox
+
 
 ## 软件截图
 
@@ -84,11 +86,23 @@ service call TvService 3 s16 "sh -c eval\${IFS}CLASSPATH=...\${IFS}MtkDirectTool
 
 ## 打包
 
-```bash
-# 安装依赖
-pip install pyinstaller pyqt6 qfluentwidgets
+### Web 桌面版（Tauri）
 
-# 打包（或直接运行 build.bat）
+```bash
+cd web
+npm install
+npm run tauri:build
+```
+
+打包产物：
+- Windows：`web/src-tauri/target/release/bundle/nsis/`（安装版）
+- macOS：`web/src-tauri/target/release/bundle/dmg/`
+- Portable：直接使用 `web/src-tauri/target/release/monitor-toolbox.exe`（adb 自动内嵌）
+
+### Python 版（PyInstaller）
+
+```bash
+pip install pyinstaller pyqt6 qfluentwidgets
 pyinstaller --onefile --windowed --name "MonitorToolbox" --icon=icon.ico \
   --hidden-import qfluentwidgets \
   --add-binary "adb.exe;." \
@@ -100,6 +114,12 @@ pyinstaller --onefile --windowed --name "MonitorToolbox" --icon=icon.ico \
 
 ## 依赖
 
+### Web 桌面版
+- Node.js 18+
+- Rust / Cargo
+- Tauri CLI
+
+### Python 版
 - Python 3.10+
 - PyQt6
 - qfluentwidgets

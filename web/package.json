@@ -1,0 +1,29 @@
+{
+  "name": "monitor-toolbox-web",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "copy-adb": "node scripts/copy-adb.js",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "npm run copy-adb && tauri build",
+    "tauri:build:win": "npm run copy-adb && tauri build --target x86_64-pc-windows-msvc",
+    "tauri:build:mac": "npm run copy-adb && tauri build --target universal-apple-darwin",
+    "tauri:build:mac-arm": "npm run copy-adb && tauri build --target aarch64-apple-darwin",
+    "tauri:build:mac-intel": "npm run copy-adb && tauri build --target x86_64-apple-darwin",
+    "tauri:build:linux": "npm run copy-adb && tauri build --target x86_64-unknown-linux-gnu"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.0",
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.0",
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

@@ -6,3 +6,11 @@ build/
 logs/
 *.Zone.Identifier
 ok.py
+
+# Web / Tauri
+web/node_modules/
+web/dist/
+web/src-tauri/target/
+web/src-tauri/bin/
+*.exe
+*.dll
